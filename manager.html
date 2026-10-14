@@ -1,0 +1,895 @@
+<!doctype html>
+<html lang="vi">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Fashion AI — Model Management</title>
+    <style>
+        :root {
+            font: 14px 'Segoe UI', system-ui, sans-serif;
+            color: #173652;
+            background: #f2f8fe;
+            --navy: #087cc1;
+            --muted: #58738b;
+            --border: #dcebf7
+        }
+
+        * {
+            box-sizing: border-box
+        }
+
+        body {
+            margin: 0
+        }
+
+        button,
+        input {
+            font: inherit
+        }
+
+        button,
+        a,
+        input {
+            -webkit-tap-highlight-color: transparent
+        }
+
+        a {
+            color: var(--navy);
+            text-decoration: none
+        }
+
+        button {
+            cursor: pointer
+        }
+
+        button:disabled {
+            opacity: .5;
+            cursor: wait
+        }
+
+        button:focus-visible,
+        a:focus-visible,
+        input:focus-visible {
+            outline: 3px solid #81add8;
+            outline-offset: 3px
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 232px 1fr;
+            min-height: 100vh
+        }
+
+        .sidebar {
+            background: #fff;
+            border-right: 1px solid var(--border);
+            padding: 32px 22px;
+            display: flex;
+            flex-direction: column;
+            gap: 36px
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -.6px
+        }
+
+        .brandmark {
+            width: 38px;
+            height: 38px;
+            background: var(--navy);
+            border-radius: 11px;
+            color: white;
+            display: grid;
+            place-items: center;
+            font-size: 18px
+        }
+
+        .brand small {
+            display: block;
+            font-size: 10px;
+            font-weight: 500;
+            letter-spacing: 2px;
+            color: var(--muted);
+            margin-top: 5px
+        }
+
+        .nav-label {
+            font-size: 10px;
+            letter-spacing: 1.8px;
+            color: #98a3b2;
+            margin-bottom: 14px
+        }
+
+        .nav-item {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            padding: 13px 14px;
+            border-radius: 8px;
+            margin-bottom: 6px;
+            color: #69778a
+        }
+
+        .nav-item.active {
+            background: #edf3f9;
+            color: #234f7a;
+            font-weight: 600
+        }
+
+        .side-bottom {
+            margin-top: auto;
+            border-top: 1px solid var(--border);
+            padding-top: 20px;
+            font-size: 12px;
+            color: var(--muted);
+            line-height: 1.8
+        }
+
+        .dot {
+            display: inline-block;
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #3a9c81;
+            margin-right: 6px
+        }
+
+        .workspace {
+            min-width: 0
+        }
+
+        .topbar {
+            height: 76px;
+            background: #fff;
+            border-bottom: 1px solid var(--border);
+            padding: 0 42px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            color: var(--muted);
+            font-size: 12px
+        }
+
+        .topbar strong {
+            color: #52627a;
+            font-weight: 500
+        }
+
+        .local-pill {
+            border: 1px solid var(--border);
+            padding: 7px 11px;
+            border-radius: 6px;
+            background: #fafbfd
+        }
+
+        main {
+            max-width: 1380px;
+            margin: auto;
+            padding: 38px 42px
+        }
+
+        .heading {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+            align-items: center
+        }
+
+        .eyebrow {
+            font-size: 10px;
+            letter-spacing: 2px;
+            color: #8291a5;
+            font-weight: 650
+        }
+
+        h1 {
+            font-size: 30px;
+            letter-spacing: -.8px;
+            font-weight: 650;
+            margin: 9px 0
+        }
+
+        p {
+            color: var(--muted);
+            line-height: 1.7;
+            margin: 6px 0
+        }
+
+        h2 {
+            font-size: 17px;
+            font-weight: 650;
+            margin: 0
+        }
+
+        .button {
+            border: 1px solid var(--border);
+            background: white;
+            color: #3c506a;
+            padding: 10px 15px;
+            border-radius: 7px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px
+        }
+
+        .button:hover {
+            background: #f0f5fa
+        }
+
+        .primary {
+            background: var(--navy);
+            border-color: var(--navy);
+            color: white
+        }
+
+        .primary:hover {
+            background: #244c75
+        }
+
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 18px;
+            margin: 28px 0
+        }
+
+        .stat {
+            background: white;
+            border: 1px solid var(--border);
+            padding: 22px;
+            border-radius: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--muted)
+        }
+
+        .stat-number {
+            font-size: 29px;
+            font-weight: 600;
+            margin-top: 7px;
+            letter-spacing: -1px
+        }
+
+        .stat-icon {
+            background: #f0f4f9;
+            border-radius: 10px;
+            padding: 14px;
+            color: #4e7197
+        }
+
+        .section-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 32px 0 18px
+        }
+
+        .section-top p {
+            font-size: 12px
+        }
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 18px
+        }
+
+        .card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            transition: box-shadow .2s, transform .2s
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px #1534530a
+        }
+
+        .card-content {
+            padding: 23px
+        }
+
+        .model-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 22px
+        }
+
+        .model-icon {
+            display: grid;
+            place-items: center;
+            width: 44px;
+            height: 44px;
+            border: 1px solid #dce6f0;
+            background: #f1f5fa;
+            color: #36638e;
+            border-radius: 11px;
+            font-size: 19px
+        }
+
+        .tag {
+            font-size: 10px;
+            font-weight: 600;
+            padding: 5px 9px;
+            border-radius: 5px;
+            background: #edf6f2;
+            color: #348167
+        }
+
+        .tag.off {
+            background: #fbf3e7;
+            color: #a57e3b
+        }
+
+        .task {
+            font-size: 12px;
+            margin: 8px 0 22px
+        }
+
+        .model-meta {
+            display: flex;
+            gap: 22px;
+            padding-top: 16px;
+            border-top: 1px solid #eef1f5
+        }
+
+        .model-meta small {
+            display: block;
+            color: #8c98a9;
+            font-size: 10px;
+            margin-bottom: 5px
+        }
+
+        .model-meta strong {
+            font-size: 12px;
+            font-weight: 500
+        }
+
+        .card-actions {
+            background: #fbfcfe;
+            padding: 13px 20px;
+            border-top: 1px solid #eef1f5;
+            display: flex;
+            gap: 8px
+        }
+
+        .card-actions .button {
+            font-size: 11px;
+            padding: 8px 11px
+        }
+
+        .card-actions .detail {
+            margin-right: auto
+        }
+
+        .storage-panel {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin-top: 28px;
+            padding: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px
+        }
+
+        .storage-left {
+            display: flex;
+            gap: 18px;
+            align-items: center
+        }
+
+        .storage-panel p {
+            font-size: 12px
+        }
+
+        .storage-logo {
+            width: 48px;
+            height: 48px;
+            background: #fff4e8;
+            color: #ca8746;
+            border-radius: 10px;
+            display: grid;
+            place-items: center;
+            font-size: 17px;
+            font-weight: 650
+        }
+
+        .storage-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap
+        }
+
+        .footer {
+            font-size: 11px;
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+            border-top: 1px solid var(--border);
+            margin-top: 35px;
+            padding-top: 20px;
+            color: #98a4b5
+        }
+
+        #notice {
+            padding: 12px 16px;
+            background: #eaf1f9;
+            color: #365d85;
+            border-radius: 8px;
+            margin-top: 18px;
+            line-height: 1.6
+        }
+
+        #notice:empty {
+            display: none
+        }
+
+        dialog {
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            max-width: 660px;
+            width: calc(100% - 32px);
+            padding: 28px;
+            color: #172943;
+            box-shadow: 0 24px 90px #0e233b33
+        }
+
+        dialog::backdrop {
+            background: #132a4566;
+            backdrop-filter: blur(3px)
+        }
+
+        .modal-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 22px
+        }
+
+        .info {
+            display: grid;
+            grid-template-columns: 140px 1fr;
+            gap: 14px;
+            font-size: 13px;
+            margin: 22px 0
+        }
+
+        .info dt {
+            color: var(--muted)
+        }
+
+        .info dd {
+            margin: 0;
+            overflow-wrap: anywhere
+        }
+
+        .upload-area {
+            border: 1px dashed #becfe0;
+            background: #f8fafd;
+            border-radius: 10px;
+            padding: 22px;
+            margin: 18px 0
+        }
+
+        .upload-area label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 10px
+        }
+
+        .upload-area input {
+            max-width: 100%;
+            font-size: 12px
+        }
+
+        .hint {
+            font-size: 12px;
+            margin-top: 12px
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px
+        }
+
+        .versions {
+            margin-top: 22px;
+            border-top: 1px solid var(--border);
+            padding-top: 20px
+        }
+
+        .version {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f3f7;
+            font-size: 12px
+        }
+
+        .version small {
+            display: block;
+            color: var(--muted);
+            margin-top: 5px;
+            overflow-wrap: anywhere
+        }
+
+        .icon {
+            width: 18px;
+            height: 18px;
+            display: inline-block;
+            vertical-align: middle;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 1.6;
+            stroke-linecap: round;
+            stroke-linejoin: round
+        }
+
+        .progress {
+            font-size: 12px;
+            color: #376a99;
+            margin-top: 12px;
+            min-height: 18px
+        }
+
+        .toggle[aria-pressed=true] {
+            color: #348167
+        }
+
+        @media(min-width:1500px) {
+            main {
+                padding-top: 48px
+            }
+        }
+
+        @media(max-width:1100px) {
+            .layout {
+                grid-template-columns: 190px 1fr
+            }
+
+            main {
+                padding: 28px
+            }
+
+            .topbar {
+                padding: 0 28px
+            }
+
+            .cards {
+                grid-template-columns: 1fr
+            }
+
+            .model-meta {
+                gap: 36px
+            }
+
+            .card-content {
+                padding: 20px
+            }
+
+            .model-head {
+                margin-bottom: 12px
+            }
+
+            .storage-panel {
+                align-items: flex-start;
+                flex-direction: column
+            }
+        }
+
+        @media(max-width:680px) {
+            .layout {
+                display: block
+            }
+
+            .sidebar {
+                padding: 16px 20px;
+                border-right: 0;
+                border-bottom: 1px solid var(--border);
+                flex-direction: row;
+                align-items: center;
+                justify-content: space-between
+            }
+
+            .sidebar nav,
+            .side-bottom {
+                display: none
+            }
+
+            .brand small {
+                display: none
+            }
+
+            .topbar {
+                height: 55px;
+                padding: 0 20px
+            }
+
+            main {
+                padding: 25px 18px
+            }
+
+            .heading {
+                align-items: flex-start;
+                flex-direction: column
+            }
+
+            h1 {
+                font-size: 26px
+            }
+
+            .summary {
+                gap: 8px
+            }
+
+            .stat {
+                padding: 14px
+            }
+
+            .stat-icon {
+                display: none
+            }
+
+            .stat-number {
+                font-size: 24px
+            }
+
+            .stat-label {
+                font-size: 10px
+            }
+
+            .storage-left {
+                align-items: flex-start
+            }
+
+            .footer {
+                flex-direction: column;
+                gap: 8px
+            }
+
+            .info {
+                grid-template-columns: 105px 1fr
+            }
+
+            .section-top {
+                gap: 12px
+            }
+        }
+        /* SVG symbols must never occupy the default 300 x 150 SVG viewport. */
+        .icon-definitions {
+            position: absolute;
+            width: 0;
+            height: 0;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        .sidebar { background: #fff; border-right-color: #d9eaf7; }
+        .brand { color: #173652; }
+        .brandmark { background: linear-gradient(145deg, #39b5ed, #087ac0); box-shadow: 0 5px 14px #1294d529; }
+        .brand small, .nav-label { color: #62849f; }
+        .nav-item { color: #526f87; }
+        .nav-item:hover { background: #f0f8ff; color: #087cc1; }
+        .nav-item.active { background: #e5f4ff; color: #0877bb; box-shadow: inset 3px 0 #21a6e4; }
+        .topbar { height: 64px; background: #fff; color: #64829a; }
+        .topbar strong { color: #264f70; font-weight: 600; }
+        .local-pill { color: #157cba; background: #f0f9ff; border-color: #cee9fa; }
+        main { padding-top: 30px; padding-bottom: 24px; }
+        .eyebrow { color: #1688c6; font-weight: 700; }
+        h1 { color: #163e5e; font-weight: 750; font-size: 32px; }
+        h2 { color: #244c6b; font-weight: 700; }
+        .heading p { color: #58758d; }
+        .button { border-color: #d3e6f4; color: #356280; box-shadow: 0 1px 2px #14558305; }
+        .button:hover { background: #eaf6ff; border-color: #8bcbed; }
+        .primary { background: #0988d0; border-color: #0988d0; color: #fff; box-shadow: 0 4px 12px #138dcc26; }
+        .primary:hover { background: #0876b6; border-color: #0876b6; }
+        .summary { margin: 24px 0; }
+        .stat { border-radius: 12px; padding: 20px 22px; box-shadow: 0 3px 12px #1b7db405; }
+        .stat:first-child { background: linear-gradient(120deg, #0785cc, #2da9e5); border-color: #1594d5; }
+        .stat:first-child .stat-label { color: #e0f4ff; }
+        .stat:first-child .stat-number { color: #fff; }
+        .stat:first-child .stat-icon { background: #ffffff24; color: #fff; }
+        .stat-label { color: #58768f; font-weight: 500; }
+        .stat-number { color: #174f79; font-weight: 750; font-size: 30px; }
+        .stat-icon { background: #eaf7ff; color: #178cc8; }
+        .section-top { margin: 26px 0 16px; }
+        .card { border-color: #dcebf6; border-top: 3px solid #44b1e4; box-shadow: 0 4px 18px #17568706; }
+        .card:hover { border-color: #a0d5f0; box-shadow: 0 8px 24px #1687c211; }
+        .card-content { padding: 20px 23px; }
+        .model-head { margin-bottom: 18px; }
+        .model-icon { color: #0c88cd; border-color: #cfeafa; background: #ecf8ff; }
+        .task { color: #5d7890; margin-bottom: 18px; }
+        .model-meta { border-top-color: #e8f1f8; }
+        .model-meta small { color: #71899d; font-weight: 600; }
+        .model-meta strong { color: #355b78; font-weight: 650; }
+        .card-actions { background: #f5fbff; border-top-color: #e2f0fa; }
+        .card-actions .detail { color: #087cc1; background: #e8f5fe; border-color: #cae8fa; }
+        .tag { background: #e8f7f2; color: #237a60; font-size: 11px; }
+        .storage-panel { margin-top: 24px; border-color: #d7eaf8; background: linear-gradient(110deg, #fff, #f5fbff); }
+        .storage-logo { background: #e4f4ff; color: #0c83c6; }
+        .footer { color: #67859b; margin-top: 25px; }
+        #notice { background: #e4f4ff; color: #246486; border: 1px solid #c6e7fb; }
+        #notice:empty { border: 0; }
+        dialog { border-color: #cde7f8; }
+        .upload-area { background: #f2faff; border-color: #92caeb; }
+        @media(min-width:1500px) { main { padding-top: 36px; } }
+        @media(max-width:680px) { main { padding: 24px 18px; } h1 { font-size: 27px; } .stat { padding: 14px; } .stat-number { font-size: 24px; } .topbar { height: 55px; } }
+    </style>
+</head>
+
+<body>
+    <svg class="icon-definitions" width="0" height="0" aria-hidden="true" focusable="false">
+        <symbol id="grid" viewBox="0 0 24 24">
+            <rect x="3" y="3" width="7" height="7" rx="1" />
+            <rect x="14" y="3" width="7" height="7" rx="1" />
+            <rect x="3" y="14" width="7" height="7" rx="1" />
+            <rect x="14" y="14" width="7" height="7" rx="1" />
+        </symbol>
+        <symbol id="cube" viewBox="0 0 24 24">
+            <path d="m12 3 9 5-9 5-9-5 9-5Zm-9 5v10l9 5 9-5V8M12 13v10" />
+        </symbol>
+        <symbol id="book" viewBox="0 0 24 24">
+            <path d="M4 4h7l1 2 1-2h7v15h-7l-1 2-1-2H4V4Zm8 2v15" />
+        </symbol>
+        <symbol id="refresh" viewBox="0 0 24 24">
+            <path d="M20 7a9 9 0 0 0-15-2L2 8m0-6v6h6M4 17a9 9 0 0 0 15 2l3-3m0 6v-6h-6" />
+        </symbol>
+        <symbol id="cloud" viewBox="0 0 24 24">
+            <path d="M7 19a5 5 0 0 1-1-10 7 7 0 0 1 13-1 5.5 5.5 0 0 1 0 11H7Z" />
+        </symbol>
+    </svg>
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="brand"><span class="brandmark">F</span>
+                <div>Fashion AI<small>MODEL PLATFORM</small></div>
+            </div>
+            <nav aria-label="Điều hướng">
+                <div class="nav-label">WORKSPACE</div><a class="nav-item active" href="#models" aria-current="page"><svg
+                        class="icon">
+                        <use href="#grid" />
+                    </svg>Quản lý model</a><a class="nav-item" href="/docs" target="_blank"
+                    rel="noopener noreferrer"><svg class="icon">
+                        <use href="#book" />
+                    </svg>Tài liệu API ↗</a><a class="nav-item" href="https://developers.cloudflare.com/r2/"
+                    target="_blank" rel="noopener noreferrer"><svg class="icon">
+                        <use href="#cloud" />
+                    </svg>Cloudflare R2 ↗</a>
+            </nav>
+            <div class="side-bottom"><span class="dot"></span>Không gian quản lý riêng<br>Fashion AI · v1.0</div>
+        </aside>
+        <div class="workspace">
+            <div class="topbar">
+                <div>Workspace <span aria-hidden="true"> / </span> <strong>Quản lý model</strong></div><span
+                    class="local-pill">Model Management</span>
+            </div>
+            <main>
+                <header class="heading">
+                    <div>
+                        <div class="eyebrow">MODEL MANAGEMENT</div>
+                        <h1>Quản lý model AI</h1>
+                        <p>Theo dõi thông tin, cập nhật model và quản lý các phiên bản.</p>
+                    </div><a class="button primary" href="/docs" target="_blank" rel="noopener noreferrer"><svg
+                            class="icon">
+                            <use href="#book" />
+                        </svg>Tài liệu API ↗</a>
+                </header>
+                <div id="notice" role="status" aria-live="polite"></div>
+                <div class="summary">
+                    <div class="stat">
+                        <div>
+                            <div class="stat-label">Tổng số model</div>
+                            <div class="stat-number" id="total">—</div>
+                        </div><span class="stat-icon"><svg class="icon">
+                                <use href="#cube" />
+                            </svg></span>
+                    </div>
+                    <div class="stat">
+                        <div>
+                            <div class="stat-label">Model đã bật</div>
+                            <div class="stat-number" id="enabled">—</div>
+                        </div><span class="stat-icon"><span class="dot"></span></span>
+                    </div>
+                    <div class="stat">
+                        <div>
+                            <div class="stat-label">Dung lượng model</div>
+                            <div class="stat-number" id="size">—</div>
+                        </div><span class="stat-icon"><svg class="icon">
+                                <use href="#cloud" />
+                            </svg></span>
+                    </div>
+                </div>
+                <div class="section-top">
+                    <div>
+                        <h2>Danh sách model</h2>
+                        <p>Các model phục vụ nhận diện và tư vấn thời trang.</p>
+                    </div><button class="button" id="reload"><svg class="icon">
+                            <use href="#refresh" />
+                        </svg>Nạp lại model</button>
+                </div>
+                <div class="cards" id="models" aria-live="polite">
+                    <p>Đang tải danh sách model…</p>
+                </div>
+                <section class="storage-panel">
+                    <div class="storage-left"><span class="storage-logo">R2</span>
+                        <div>
+                            <h2>Lưu trữ model</h2>
+                            <p id="storage-status">Đang kiểm tra cấu hình…</p>
+                            <p>Phiên bản cũ được giữ lại khi thay thế model.</p>
+                        </div>
+                    </div>
+                    <div class="storage-actions"><button class="button" id="check-r2">Kiểm tra kết nối</button><a
+                            class="button" href="https://developers.cloudflare.com/r2/examples/aws/boto3/"
+                            target="_blank" rel="noopener noreferrer">Hướng dẫn R2 ↗</a></div>
+                </section>
+                <footer class="footer"><span>Fashion AI · Model Management</span><span>Thời gian cập nhật: <span
+                            id="updated">—</span></span></footer>
+            </main>
+        </div>
+    </div>
+    <dialog id="detail-dialog">
+        <div class="modal-head">
+            <h2 id="detail-title">Thông tin model</h2><button class="button" data-close="detail-dialog"
+                aria-label="Đóng thông tin">✕</button>
+        </div>
+        <dl class="info" id="detail-info"></dl>
+        <div class="versions">
+            <h2>Lịch sử phiên bản</h2>
+            <div id="versions"></div>
+        </div>
+    </dialog>
+    <dialog id="replace-dialog">
+        <div class="modal-head">
+            <h2 id="replace-title">Thay thế model</h2><button class="button" data-close="replace-dialog"
+                aria-label="Đóng thay thế model">✕</button>
+        </div>
+        <p>Chọn checkpoint mới phù hợp với model. Phiên bản hiện tại sẽ được lưu dự phòng trước khi cập nhật.</p>
+        <div class="upload-area"><label for="model-file">File model mới</label><input id="model-file" type="file">
+            <p class="hint" id="upload-hint"></p>
+        </div>
+        <p class="hint" id="compatibility"></p>
+        <div class="progress" id="upload-progress" role="status" aria-live="polite"></div>
+        <div class="modal-actions"><button class="button" data-close="replace-dialog">Hủy</button><button
+                class="button primary" id="upload">Lưu và thay thế</button></div>
+    </dialog>
+    <script>
+        const $ = id => document.getElementById(id); let selectedModel = null, maxModelMB = 256;
+        const mb = bytes => (bytes / 1024 / 1024).toFixed(1) + ' MB';
+        const date = value => value ? new Date(value).toLocaleString('vi-VN') : '—';
+        function element(tag, className, text) { const e = document.createElement(tag); if (className) e.className = className; if (text !== undefined) e.textContent = text; return e }
+        async function api(path, options = {}) { const response = await fetch(path, { ...options, headers: { 'Content-Type': 'application/json', ...options.headers } }); const data = await response.json(); if (!response.ok) throw new Error(typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail)); return data }
+        function notice(message = '') { $('notice').textContent = message }
+        async function action(button, work) { button.disabled = true; try { await work() } catch (e) { notice(e.message) } finally { button.disabled = false } }
+        async function load() { try { const { models } = await api('/api/models'); $('total').textContent = models.length; $('enabled').textContent = models.filter(m => m.enabled && m.available).length; $('size').textContent = mb(models.reduce((sum, m) => sum + m.size_bytes, 0)); $('models').replaceChildren(); for (const model of models) { const card = element('article', 'card'); const content = element('div', 'card-content'); const head = element('div', 'model-head'); head.append(element('span', 'model-icon', { yolo: '◈', resnet: '▦', rasa: '◎' }[model.id]), element('span', 'tag' + (model.enabled && model.available ? '' : ' off'), !model.available ? 'Thiếu file' : model.enabled ? 'Đã bật' : 'Đã tắt')); content.append(head, element('h2', '', model.name), element('p', 'task', model.task)); const meta = element('div', 'model-meta'); for (const [label, value] of [['ĐỊNH DẠNG', model.format], ['DUNG LƯỢNG', mb(model.size_bytes)]]) { const item = element('div'); item.append(element('small', '', label), element('strong', '', value)); meta.append(item) } content.append(meta); const actions = element('div', 'card-actions'); const detail = element('button', 'button detail', 'Thông tin'); detail.onclick = () => action(detail, () => showDetail(model.id)); const replace = element('button', 'button', 'Thay thế'); replace.onclick = () => showReplace(model); const toggle = element('button', 'button toggle', model.enabled ? 'Tắt' : 'Bật'); toggle.setAttribute('aria-pressed', String(model.enabled)); toggle.setAttribute('aria-label', (model.enabled ? 'Tắt ' : 'Bật ') + model.name); toggle.onclick = () => action(toggle, async () => { await api('/api/models/' + model.id, { method: 'PATCH', body: JSON.stringify({ enabled: !model.enabled }) }); notice('Đã cập nhật ' + model.name); await load() }); actions.append(detail, replace, toggle); card.append(content, actions); $('models').append(card) } $('updated').textContent = new Date().toLocaleTimeString('vi-VN'); const storage = await api('/api/storage'); maxModelMB = storage.max_model_mb; $('storage-status').textContent = storage.enabled ? (storage.configured ? 'Cloudflare R2 · Đã cấu hình. Kiểm tra kết nối để xác nhận.' : 'Cloudflare R2 · Thiếu thông tin cấu hình trong .env.') : 'Lưu trữ tại máy · Bật R2 trong .env để lưu phiên bản lên cloud.'; $('check-r2').disabled = !storage.enabled || !storage.configured } catch (e) { notice(e.message) } }
+        async function showDetail(id) { const model = await api('/api/models/' + id); $('detail-title').textContent = model.name + ' · Thông tin'; $('detail-info').replaceChildren(); for (const [label, value] of [['Chức năng', model.task], ['File model', model.file], ['Định dạng', model.format], ['Dung lượng', mb(model.size_bytes)], ['Cập nhật', date(model.modified_at)], ['Trạng thái', !model.available ? 'Thiếu file' : model.enabled ? 'Đã bật' : 'Đã tắt']]) { $('detail-info').append(element('dt', '', label), element('dd', '', value)) } $('versions').replaceChildren(); if (!model.versions.length) $('versions').append(element('p', 'hint', 'Chưa có phiên bản lưu. Phiên bản hiện tại sẽ được lưu khi thay thế lần đầu.')); for (const version of model.versions) { const row = element('div', 'version'); const info = element('div', '', date(version.created_at) + ' · ' + mb(version.size_bytes)); info.append(element('small', '', version.r2_key ? 'Đã lưu trên R2' : 'Bản lưu tại máy'), element('small', '', 'SHA-256: ' + version.sha256)); const restore = element('button', 'button', 'Khôi phục'); restore.onclick = () => action(restore, async () => { const result = await api(`/api/models/${id}/versions/${version.id}/restore`, { method: 'POST' }); notice(result.message); await load(); await showDetail(id) }); row.append(info, restore); $('versions').append(row) } if (!$('detail-dialog').open) $('detail-dialog').showModal() }
+        function showReplace(model) { selectedModel = model; $('replace-title').textContent = 'Thay thế ' + model.name; $('model-file').value = ''; $('model-file').accept = model.format; $('upload-hint').textContent = 'Định dạng ' + model.format + ' · Tối đa ' + maxModelMB + ' MB.'; $('compatibility').textContent = model.id === 'rasa' ? 'Sau khi thay thế, cần khởi động lại dịch vụ Rasa để sử dụng model mới.' : model.id === 'resnet' ? 'Checkpoint cần kiến trúc ResNet18, trọng số và ít nhất 3 nhãn màu.' : 'Sử dụng checkpoint YOLO detection từ nguồn huấn luyện tin cậy.'; $('upload-progress').textContent = ''; $('replace-dialog').showModal() }
+        document.querySelectorAll('[data-close]').forEach(button => button.onclick = () => $(button.dataset.close).close());
+        $('upload').onclick = () => action($('upload'), async () => { const file = $('model-file').files[0]; if (!file) { $('upload-progress').textContent = 'Vui lòng chọn file model.'; return } if (!file.name.toLowerCase().endsWith(selectedModel.format) || file.size > maxModelMB * 1024 * 1024) { $('upload-progress').textContent = 'Định dạng hoặc dung lượng file không phù hợp.'; return } const modelId = selectedModel.id; document.querySelectorAll('[data-close="replace-dialog"]').forEach(b => b.disabled = true); $('model-file').disabled = true; $('upload-progress').textContent = 'Đang tải lên, kiểm tra và lưu model…'; try { const result = await api('/api/models/' + modelId + '/file', { method: 'PUT', headers: { 'Content-Type': 'application/octet-stream', 'X-Filename': encodeURIComponent(file.name) }, body: file }); $('replace-dialog').close(); notice(result.message); await load() } catch (e) { $('upload-progress').textContent = e.message } finally { document.querySelectorAll('[data-close="replace-dialog"]').forEach(b => b.disabled = false); $('model-file').disabled = false } });
+        $('replace-dialog').addEventListener('cancel', event => { if ($('upload').disabled) event.preventDefault() });
+        $('reload').onclick = () => action($('reload'), async () => { notice((await api('/api/models/reload', { method: 'POST' })).message) });
+        $('check-r2').onclick = () => action($('check-r2'), async () => { notice((await api('/api/storage/check', { method: 'POST' })).message) }); load();
+    </script>
+</body>
+
+</html>

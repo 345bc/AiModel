@@ -1,0 +1,19 @@
+services:
+  ai-manager:
+    build: .
+    ports:
+      - "127.0.0.1:${PORT:-8080}:8080"
+    env_file: .env
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8080
+      DATA_DIR: /data
+      RASA_URL: ${DOCKER_RASA_URL:-http://host.docker.internal:5005}
+    volumes:
+      - manager-data:/data
+      - ./yolo:/app/yolo
+      - ./resnet:/app/resnet
+      - ./rasa:/app/rasa
+    restart: unless-stopped
+volumes:
+  manager-data:
