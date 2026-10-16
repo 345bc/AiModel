@@ -25,11 +25,12 @@ def predict(data):
     raw = base64.b64decode(data["image"].split(",", 1)[-1], validate=True)
     img = ImageOps.exif_transpose(Image.open(io.BytesIO(raw))).convert("RGB")
     with LOCK:
-        model_paths = [ROOT / "resnet/best.pt", ROOT / "yolo/best.pt"]
+        from storage import model_path
+        model_paths = [model_path("resnet"), model_path("yolo")]
         signature = tuple((p.stat().st_mtime_ns, p.stat().st_size) for p in model_paths)
         if not MODELS or MODELS.get("signature") != signature:
             checkpoint = torch.load(
-                ROOT / "resnet/best.pt", map_location="cpu", weights_only=True
+                model_paths[0], map_location="cpu", weights_only=True
             )
             if checkpoint["architecture"] != "resnet18":
                 raise ValueError("Kiến trúc ResNet chưa được hỗ trợ.")
@@ -45,7 +46,7 @@ def predict(data):
             net.fc = torch.nn.Linear(net.fc.in_features, len(names))
             net.load_state_dict(state)
             net.eval()
-            detector = YOLO(str(ROOT / "yolo/best.pt"))
+            detector = YOLO(str(model_paths[1]))
             MODELS.update(net=net, names=names, yolo=detector, signature=signature,
                           image_size=int(checkpoint.get("image_size", 224)),
                           mean=checkpoint.get("mean", [0.485, 0.456, 0.406]),
@@ -125,8 +126,8 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(
                 200,
                 {
-                    "yolo": (ROOT / "yolo/best.pt").exists(),
-                    "resnet": (ROOT / "resnet/best.pt").exists(),
+                    "yolo": __import__("storage").active_model("yolo") is not None,
+                    "resnet": __import__("storage").active_model("resnet") is not None,
                     "rasa": rasa,
                 },
             )
@@ -172,22 +173,5 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", "8080"))
-    httpd = None
-    for candidate in dict.fromkeys([port, 8088, 8765, 18080, 0]):
-        try:
-            httpd = ThreadingHTTPServer(("127.0.0.1", candidate), Handler)
-            break
-        except OSError as exc:
-            if exc.errno not in (13, 98, 10013, 10048) and getattr(
-                exc, "winerror", None
-            ) not in (10013, 10048):
-                raise
-            print(f"Không mở được cổng {candidate}; đang thử cổng khác.", flush=True)
-    if httpd is None:
-        raise SystemExit(
-            "Windows không cho mở cổng localhost. Kiểm tra quyền truy cập mạng của Python trong firewall/phần mềm bảo mật."
-        )
-    port = httpd.server_address[1]
-    print(f"Mở http://127.0.0.1:{port} để test 3 model.", flush=True)
-    httpd.serve_forever()
+    import runpy
+    runpy.run_module("app", run_name="__main__")

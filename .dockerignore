@@ -4,3 +4,10 @@ __pycache__
 versions
 uploads
 .git
+
+yolo/
+resnet/
+rasa/
+*.pt
+*.tar.gz
+model/

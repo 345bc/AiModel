@@ -1,14 +1,12 @@
-"""Versioned local model storage with optional private Cloudflare R2 backup."""
+"""R2 model versions and activation, with temporary runtime downloads."""
 import hashlib
 import os
-import shutil
 import tarfile
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
-from config import DATA_DIR, ROOT
 
 
 def r2_enabled():
@@ -66,74 +64,95 @@ def validate_model(model_id, path):
         raise ValueError("Checkpoint không tương thích với model được chọn.") from exc
 
 
-def save_version(model_id, source, connection):
-    version_id = uuid4().hex
-    suffix = ".tar.gz" if model_id == "rasa" else ".pt"
-    folder = DATA_DIR / "versions" / model_id
-    folder.mkdir(parents=True, exist_ok=True)
-    saved = folder / (version_id + suffix)
-    shutil.copy2(source, saved)
-    key = None
+def manifest_key(model_id):
+    return os.getenv("R2_PREFIX", "models").strip("/") + f"/{model_id}/active.json"
+
+
+def active_model(model_id):
+    import json
+    client = r2_client()
     try:
-        if r2_enabled():
-            key = os.getenv("R2_PREFIX", "models").strip("/") + f"/{model_id}/{version_id}{suffix}"
-            r2_client().upload_file(str(saved), os.environ["R2_BUCKET"], key)
-        connection.execute("INSERT INTO versions VALUES (?, ?, ?, ?, ?, ?, ?)",
-                           (version_id, model_id, datetime.now(timezone.utc).isoformat(),
-                            saved.stat().st_size, digest(saved), str(saved.relative_to(DATA_DIR)), key))
-        return version_id
-    except Exception:
-        saved.unlink(missing_ok=True)
+        response = client.get_object(Bucket=os.environ["R2_BUCKET"], Key=manifest_key(model_id))
+    except Exception as exc:
+        code = getattr(exc, "response", {}).get("Error", {}).get("Code")
+        if code in ("NoSuchKey", "404", "NotFound"):
+            return None
         raise
+    body = response["Body"]
+    try:
+        return json.loads(body.read())
+    finally:
+        body.close()
+
+
+def activate(model_id, metadata):
+    import json
+    r2_client().put_object(Bucket=os.environ["R2_BUCKET"], Key=manifest_key(model_id),
+                           Body=json.dumps(metadata).encode(), ContentType="application/json")
+
+
+def model_path(model_id, metadata=None):
+    metadata = metadata or active_model(model_id)
+    if not metadata:
+        raise ValueError(f"Model {model_id} chưa có trên R2.")
+    folder = Path(tempfile.gettempdir()) / "fashion-ai-r2-cache" / model_id
+    folder.mkdir(parents=True, exist_ok=True)
+    suffix = ".tar.gz" if model_id == "rasa" else ".pt"
+    target = folder / (metadata["sha256"] + suffix)
+    if target.is_file() and digest(target) == metadata["sha256"]:
+        return target
+    descriptor, name = tempfile.mkstemp(dir=folder, suffix=suffix)
+    os.close(descriptor)
+    stage = Path(name)
+    try:
+        r2_client().download_file(os.environ["R2_BUCKET"], metadata["r2_key"], str(stage))
+        if digest(stage) != metadata["sha256"]:
+            raise ValueError("Checksum model R2 không khớp.")
+        os.replace(stage, target)
+        return target
+    finally:
+        stage.unlink(missing_ok=True)
 
 
 def install_model(model_id, stage):
-    from app import CATALOG, database
+    from app import database
     import server
     validate_model(model_id, stage)
-    target = ROOT / CATALOG[model_id][2]
-    target.parent.mkdir(parents=True, exist_ok=True)
+    version_id = uuid4().hex
+    suffix = ".tar.gz" if model_id == "rasa" else ".pt"
+    key = os.getenv("R2_PREFIX", "models").strip("/") + f"/{model_id}/{version_id}{suffix}"
+    metadata = dict(id=version_id, model_id=model_id,
+                    created_at=datetime.now(timezone.utc).isoformat(),
+                    size_bytes=stage.stat().st_size, sha256=digest(stage), r2_key=key)
     with server.LOCK:
+        client = r2_client()
+        client.upload_file(str(stage), os.environ["R2_BUCKET"], key)
+        # R2 manifest is the source of truth; failed upload never changes active model.
         with database() as connection:
-            if target.exists():
-                current_hash = digest(target)
-                if not connection.execute("SELECT 1 FROM versions WHERE model_id = ? AND sha256 = ?", (model_id, current_hash)).fetchone():
-                    save_version(model_id, target, connection)
-            version_id = save_version(model_id, stage, connection)
-            # Commit backup records before activation so they remain available on failure.
-            connection.commit()
-        descriptor, replacement_name = tempfile.mkstemp(dir=target.parent, suffix=target.suffix)
-        os.close(descriptor)
-        replacement = Path(replacement_name)
-        try:
-            shutil.copy2(stage, replacement)
-            os.replace(replacement, target)
-        finally:
-            replacement.unlink(missing_ok=True)
+            connection.execute("INSERT INTO versions VALUES (?, ?, ?, ?, ?, ?, ?)",
+                               (version_id, model_id, metadata["created_at"], metadata["size_bytes"],
+                                metadata["sha256"], "", key))
+        activate(model_id, metadata)
         server.MODELS.clear()
-    message = "Đã thay thế model và lưu phiên bản dự phòng."
+    message = "Đã upload và kích hoạt model trên R2."
     if model_id == "rasa":
-        message += " Khởi động lại dịch vụ Rasa với file mới để áp dụng."
+        message += " Dịch vụ Rasa cần nạp lại model qua URL tải mới."
     return {"message": message, "version_id": version_id}
 
 
 def restore_version(model_id, row):
-    relative, key, checksum = row
-    source = DATA_DIR / relative
-    if source.exists():
-        if digest(source) != checksum:
-            raise ValueError("Checksum không khớp.")
-        return install_model(model_id, source)
+    from app import database
+    import server
+    _, key, checksum = row
     if not key:
-        raise ValueError("Không có bản lưu R2.")
-    suffix = ".tar.gz" if model_id == "rasa" else ".pt"
-    descriptor, name = tempfile.mkstemp(dir=DATA_DIR, suffix=suffix)
-    os.close(descriptor)
-    stage = Path(name)
-    try:
-        r2_client().download_file(os.environ["R2_BUCKET"], key, str(stage))
-        if digest(stage) != checksum:
-            raise ValueError("Checksum không khớp.")
-        return install_model(model_id, stage)
-    finally:
-        stage.unlink(missing_ok=True)
+        raise ValueError("Phiên bản này chưa được lưu trên R2.")
+    with database() as connection:
+        version = connection.execute("SELECT id, created_at, size_bytes FROM versions WHERE model_id=? AND r2_key=?", (model_id, key)).fetchone()
+    metadata = dict(id=version[0], model_id=model_id, created_at=version[1],
+                    size_bytes=version[2], sha256=checksum, r2_key=key)
+    # Check object is still present before switching the manifest.
+    r2_client().head_object(Bucket=os.environ["R2_BUCKET"], Key=key)
+    with server.LOCK:
+        activate(model_id, metadata)
+        server.MODELS.clear()
+    return {"message": "Đã kích hoạt lại phiên bản trên R2.", "version_id": version[0]}

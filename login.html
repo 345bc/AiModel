@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Đăng nhập · Fashion AI</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+    <style>body{background:#f2f8fe;color:#173652}.login-card{max-width:420px;width:100%;border-top:4px solid #21a6e4}.btn-primary{background:#0888d0;border-color:#0888d0}</style>
+</head>
+<body class="min-vh-100 d-flex align-items-center justify-content-center p-3">
+    <main class="login-card card shadow-sm rounded-4 p-4 p-sm-5">
+        <span class="text-primary small fw-bold mb-2">FASHION AI</span>
+        <h1 class="h3 fw-bold">Đăng nhập</h1>
+        <p class="text-secondary small mb-4">Đăng nhập để quản lý và sử dụng model AI.</p>
+        <form id="login-form">
+            <label class="form-label" for="username">Tài khoản</label>
+            <input class="form-control mb-3" id="username" name="username" autocomplete="username" maxlength="100" required autofocus>
+            <label class="form-label" for="password">Mật khẩu</label>
+            <input class="form-control mb-3" id="password" name="password" type="password" autocomplete="current-password" maxlength="200" required>
+            <div class="text-danger small mb-3" id="error" role="alert"></div>
+            <button class="btn btn-primary w-100" id="submit" type="submit">Đăng nhập</button>
+        </form>
+    </main>
+    <script>
+        document.getElementById('login-form').onsubmit = async event => {
+            event.preventDefault();
+            const button = document.getElementById('submit'), error = document.getElementById('error');
+            button.disabled = true; error.textContent = ''; button.textContent = 'Đang đăng nhập…';
+            try {
+                const response = await fetch('/api/auth/login', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({username: document.getElementById('username').value, password: document.getElementById('password').value})});
+                const data = await response.json();
+                if (!response.ok) throw new Error(typeof data.detail === 'string' ? data.detail : 'Thông tin đăng nhập không hợp lệ.');
+                window.location.replace('/');
+            } catch (e) { error.textContent = e.message; }
+            finally { button.disabled = false; button.textContent = 'Đăng nhập'; }
+        };
+    </script>
+</body>
+</html>

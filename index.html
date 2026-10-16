@@ -5,259 +5,66 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>Fashion AI — Test 3 model</title>
-    <style>
-        * {
-            box-sizing: border-box
-        }
-
-        body {
-            margin: 0;
-            background: #f3f5fa;
-            color: #19243a;
-            font: 15px system-ui, sans-serif
-        }
-
-        main {
-            max-width: 1200px;
-            margin: auto;
-            padding: 36px 24px
-        }
-
-        h1 {
-            margin: 8px 0;
-            font-size: 32px
-        }
-
-        p {
-            color: #647087;
-            line-height: 1.6
-        }
-
-        .tag {
-            font-size: 12px;
-            letter-spacing: 2px;
-            color: #5364dc
-        }
-
-        .status {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            margin: 22px 0
-        }
-
-        .badge {
-            padding: 8px 14px;
-            border-radius: 20px;
-            background: #e5e9f2
-        }
-
-        .ok {
-            background: #dcf3e7;
-            color: #176142
-        }
-
-        .off {
-            background: #ffeadc;
-            color: #8a491d
-        }
-
-        .grid {
-            display: grid;
-            grid-template-columns: 1.4fr 1fr;
-            gap: 22px
-        }
-
-        .card {
-            background: white;
-            border: 1px solid #e1e6ef;
-            border-radius: 18px;
-            padding: 24px
-        }
-
-        h2 {
-            margin-top: 0;
-            font-size: 20px
-        }
-
-        input,
-        button {
-            font: inherit
-        }
-
-        button {
-            background: #5364dc;
-            color: white;
-            border: 0;
-            border-radius: 9px;
-            padding: 11px 18px;
-            cursor: pointer
-        }
-
-        button:disabled {
-            opacity: .5;
-            cursor: wait
-        }
-
-        input[type=text] {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #d5dce8;
-            border-radius: 9px
-        }
-
-        input[type=file] {
-            max-width: 100%;
-            margin-bottom: 16px
-        }
-
-        .controls {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            flex-wrap: wrap;
-            margin: 14px 0
-        }
-
-        canvas {
-            width: 100%;
-            height: auto;
-            border-radius: 10px;
-            background: #f3f5fa;
-            display: none
-        }
-
-        .result {
-            padding: 12px;
-            background: #f3f5fa;
-            border-radius: 10px;
-            margin-top: 10px;
-            line-height: 1.7
-        }
-
-        .error {
-            color: #b42318;
-            white-space: pre-wrap
-        }
-
-        .chat {
-            height: 380px;
-            overflow: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            margin-bottom: 16px
-        }
-
-        .bubble {
-            padding: 12px 14px;
-            background: #f0f2f8;
-            border-radius: 12px;
-            white-space: pre-wrap;
-            overflow-wrap: anywhere
-        }
-
-        .user {
-            background: #e7ebff;
-            align-self: flex-end
-        }
-
-        .hint {
-            font-size: 13px
-        }
-
-        .send {
-            display: flex;
-            gap: 8px
-        }
-
-        .send input {
-            min-width: 0
-        }
-
-        .empty {
-            padding: 35px 16px;
-            text-align: center;
-            border: 1px dashed #c9d1e0;
-            border-radius: 12px;
-            color: #778297
-        }
-
-        details {
-            margin-top: 18px
-        }
-
-        pre {
-            overflow: auto;
-            font-size: 12px
-        }
-
-        @media(max-width:800px) {
-            .grid {
-                grid-template-columns: 1fr
-            }
-
-            main {
-                padding: 22px 14px
-            }
-
-            h1 {
-                font-size: 26px
-            }
-        }
-    </style>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+<style>
+:root { --bs-body-bg:#f2f8fe; --bs-body-color:#173652; }
+canvas { width:100%; height:auto; display:none; }
+.chat { height:380px; }
+.bubble { white-space:pre-wrap; overflow-wrap:anywhere; }
+.error { white-space:pre-wrap; }
+</style>
 </head>
 
 <body>
-    <main>
-        <div class="tag">FASHION AI LAB</div>
-        <h1>Test 3 model thời trang</h1>
+    <main class="container py-4">
+        <div class="text-primary small fw-bold mb-2">FASHION AI LAB</div>
+        <h1 class="h2 fw-bold">Test 3 model thời trang</h1>
         <p>YOLO nhận diện quần áo · ResNet phân loại màu · Rasa trả lời hội thoại</p>
-        <div class="status"><span class="badge" id="yolo">YOLO: đang kiểm tra</span><span class="badge"
-                id="resnet">ResNet: đang kiểm tra</span><span class="badge" id="rasa">Rasa: đang kiểm tra</span><button
+        <div class="d-flex align-items-center flex-wrap gap-2 my-4"><span class="badge bg-primary-subtle text-primary p-2" id="yolo">YOLO: đang kiểm tra</span><span class="badge bg-primary-subtle text-primary p-2"
+                id="resnet">ResNet: đang kiểm tra</span><span class="badge bg-primary-subtle text-primary p-2" id="rasa">Rasa: đang kiểm tra</span><button class="btn btn-primary"
                 id="refresh">Kiểm tra lại</button></div>
-        <div class="grid">
-            <section class="card">
-                <h2>Nhận diện ảnh</h2>
-                <p class="hint">Chọn ảnh để chạy YOLO và ResNet. Màu được phân loại riêng cho mỗi vùng quần áo tìm thấy.
+        <div class="row g-4">
+            <section class="col-12 col-lg-6"><div class="card h-100 shadow-sm"><div class="card-body p-4">
+                <h2 class="h5 fw-bold">Nhận diện ảnh</h2>
+                <p class="small text-secondary">Chọn ảnh để chạy YOLO và ResNet. Màu được phân loại riêng cho mỗi vùng quần áo tìm thấy.
                 </p>
-                <input id="file" type="file" accept="image/*">
-                <div class="controls"><label>Ngưỡng YOLO <input id="confidence" type="number" min="0.01" max="1"
-                            step="0.05" value="0.25" style="width:75px"></label><button id="predict" disabled>Chạy 2
+                <input class="form-control mb-3" id="file" type="file" accept="image/*">
+                <div class="d-flex align-items-end gap-3 flex-wrap my-3"><label for="confidence">Ngưỡng YOLO <input class="form-control mt-2" id="confidence" type="number" min="0.01" max="1"
+                            step="0.05" value="0.25" style="width:75px"></label><button class="btn btn-primary" id="predict" disabled>Chạy 2
                         model ảnh</button></div>
-                <div id="placeholder" class="empty">Ảnh xem trước và khung nhận diện sẽ xuất hiện ở đây</div><canvas
-                    id="canvas"></canvas>
-                <p id="imageError" class="error" role="alert"></p>
+                <div id="placeholder" class="border rounded-3 bg-light p-5 text-center text-secondary">Ảnh xem trước và khung nhận diện sẽ xuất hiện ở đây</div><canvas
+                    class="rounded-3 bg-light" id="canvas"></canvas>
+                <p id="imageError" class="error text-danger mt-3" role="alert"></p>
                 <div id="results" aria-live="polite"></div>
                 <details>
                     <summary>JSON kết quả</summary>
                     <pre id="raw"></pre>
                 </details>
-            </section>
-            <section class="card">
-                <h2>Chat với Rasa</h2>
-                <p class="hint">Kết nối model fashion_chatbot_final_v2 qua REST API.</p>
-                <div id="chat" class="chat" aria-live="polite">
-                    <div class="bubble">Nhập tin nhắn để bắt đầu thử chatbot.</div>
+            </div></div></section>
+            <section class="col-12 col-lg-6"><div class="card h-100 shadow-sm"><div class="card-body p-4">
+                <h2 class="h5 fw-bold">Chat với Rasa</h2>
+                <p class="small text-secondary">Kết nối model fashion_chatbot_final_v2 qua REST API.</p>
+                <div id="chat" class="chat d-flex flex-column gap-2 overflow-auto mb-3" aria-live="polite">
+                    <div class="bubble bg-light rounded-3 p-3">Nhập tin nhắn để bắt đầu thử chatbot.</div>
                 </div>
-                <form id="chatForm" class="send"><input id="message" type="text"
-                        placeholder="Ví dụ: Tôi muốn tìm áo thun" autocomplete="off" required><button
+                <form id="chatForm" class="d-flex gap-2"><input class="form-control" aria-label="Tin nhắn" id="message" type="text"
+                        placeholder="Ví dụ: Tôi muốn tìm áo thun" autocomplete="off" required><button class="btn btn-primary"
                         id="send">Gửi</button></form>
-                <p id="chatError" class="error" role="alert"></p>
-            </section>
+                <p id="chatError" class="error text-danger mt-3" role="alert"></p>
+            </div></div></section>
         </div>
-        <p class="hint">Chạy bằng <code>python server.py</code>, rồi mở <code>http://127.0.0.1:8080</code>. Lần chạy
+        <p class="small text-secondary">Model được lấy từ Cloudflare R2. Lần chạy
             model đầu tiên có thể mất vài giây.</p>
     </main>
     <script>
         const $ = id => document.getElementById(id); let source = null, original = null; const sender = 'test-' + crypto.randomUUID();
-        async function api(path, data) { const res = await fetch(path, data ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) } : {}); const out = await res.json(); if (!res.ok) throw Error(out.error || 'Lỗi server'); return out }
-        async function status() { try { const s = await api('/api/status'); for (const k of ['yolo', 'resnet', 'rasa']) { $(k).textContent = k.toUpperCase() + ': ' + (s[k] ? (k === 'rasa' ? 'đã kết nối' : 'có file model') : 'chưa sẵn sàng'); $(k).className = 'badge ' + (s[k] ? 'ok' : 'off') } } catch (e) { for (const k of ['yolo', 'resnet', 'rasa']) { $(k).textContent = k.toUpperCase() + ': cần chạy server'; $(k).className = 'badge off' } } }
+        async function api(path, data) { const res = await fetch(path, data ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) } : {}); const out = await res.json(); if (res.status === 401) { window.location.replace('/login'); throw Error('Vui lòng đăng nhập.'); } if (!res.ok) throw Error(out.detail || out.error || 'Lỗi server'); return out }
+        async function status() { try { const s = await api('/api/status'); for (const k of ['yolo', 'resnet', 'rasa']) { $(k).textContent = k.toUpperCase() + ': ' + (s[k] ? (k === 'rasa' ? 'đã kết nối' : 'đã sẵn sàng trên R2') : 'chưa sẵn sàng'); $(k).className = 'badge p-2 ' + (s[k] ? 'bg-success-subtle text-success' : 'bg-warning-subtle text-warning-emphasis') } } catch (e) { for (const k of ['yolo', 'resnet', 'rasa']) { $(k).textContent = k.toUpperCase() + ': cần chạy server'; $(k).className = 'badge p-2 bg-warning-subtle text-warning-emphasis' } } }
         function draw() { const c = $('canvas'); c.width = original.naturalWidth; c.height = original.naturalHeight; c.getContext('2d').drawImage(original, 0, 0); c.style.display = 'block'; $('placeholder').style.display = 'none' }
         $('file').onchange = async () => { source = null; $('predict').disabled = true; $('results').replaceChildren(); $('raw').textContent = ''; $('imageError').textContent = ''; const f = $('file').files[0]; if (!f) return; if (f.size > 14 * 1024 * 1024) { $('imageError').textContent = 'Chọn ảnh dưới 14 MB.'; return } try { const data = await new Promise((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(r.result); r.onerror = reject; r.readAsDataURL(f) }); const img = new Image(); img.src = data; await img.decode(); original = img; source = data; draw(); $('predict').disabled = false } catch (e) { $('imageError').textContent = 'Không đọc được ảnh.' } };
-        function result(text) { const el = document.createElement('div'); el.className = 'result'; el.textContent = text; $('results').append(el) }
+        function result(text) { const el = document.createElement('div'); el.className = 'bg-light rounded-3 p-3 mt-2'; el.textContent = text; $('results').append(el) }
         $('predict').onclick = async () => { $('predict').disabled = true; $('file').disabled = true; $('imageError').textContent = ''; $('results').replaceChildren(); $('predict').textContent = 'Đang xử lý…'; try { const out = await api('/api/predict', { image: source, confidence: Number($('confidence').value) }); draw(); const ctx = $('canvas').getContext('2d'); const size = Math.max(14, Math.round(original.naturalWidth / 55)); ctx.font = `bold ${size}px sans-serif`; ctx.lineWidth = Math.max(2, size / 6); for (const d of out.detections) { const [x, y, x2, y2] = d.box; ctx.strokeStyle = '#39e09b'; ctx.strokeRect(x, y, x2 - x, y2 - y); const label = `${d.label} ${Math.round(d.confidence * 100)}% · ${d.colors[0].label}`; const ty = Math.max(size + 8, y); ctx.fillStyle = '#19243a'; ctx.fillRect(x, ty - size - 5, ctx.measureText(label).width + 12, size + 10); ctx.fillStyle = 'white'; ctx.fillText(label, x + 6, ty); result(`${d.label} (${(d.confidence * 100).toFixed(1)}%) — Màu: ${d.colors.map(c => `${c.label} ${(c.confidence * 100).toFixed(1)}%`).join(' / ')}`) } if (!out.detections.length) result('YOLO không tìm thấy quần áo ở ngưỡng hiện tại.'); $('raw').textContent = JSON.stringify(out, null, 2) } catch (e) { $('imageError').textContent = e.message } finally { $('predict').disabled = false; $('file').disabled = false; $('predict').textContent = 'Chạy 2 model ảnh' } };
-        function bubble(text, user = false) { const el = document.createElement('div'); el.className = 'bubble' + (user ? ' user' : ''); el.textContent = text; $('chat').append(el); $('chat').scrollTop = $('chat').scrollHeight }
+        function bubble(text, user = false) { const el = document.createElement('div'); el.className = 'bubble rounded-3 p-3 ' + (user ? 'bg-primary-subtle align-self-end' : 'bg-light'); el.textContent = text; $('chat').append(el); $('chat').scrollTop = $('chat').scrollHeight }
         $('chatForm').onsubmit = async e => { e.preventDefault(); const message = $('message').value.trim(); if (!message) return; bubble(message, true); $('message').value = ''; $('send').disabled = true; $('chatError').textContent = ''; try { const out = await api('/api/chat', { message, sender }); if (!out.messages.length) bubble('Rasa không trả lời. Kiểm tra custom action hoặc cấu hình bot.'); for (const m of out.messages) { if (m.text) bubble(m.text); if (m.buttons) bubble(m.buttons.map(b => `${b.title} (${b.payload})`).join('\n')); if (m.image) bubble('Ảnh: ' + m.image); if (m.custom) bubble(JSON.stringify(m.custom, null, 2)) } } catch (e) { $('chatError').textContent = e.message } finally { $('send').disabled = false; $('message').focus() } };
         $('refresh').onclick = status; status();
     </script>

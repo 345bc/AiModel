@@ -5,6 +5,10 @@ import json
 import os
 import sqlite3
 import tempfile
+import secrets
+import hashlib
+import hmac
+import time
 from datetime import datetime, timezone
 from contextlib import contextmanager
 from pathlib import Path
@@ -13,7 +17,7 @@ from urllib.request import Request, urlopen
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request as WebRequest
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse, JSONResponse
 from pydantic import BaseModel, Field
 
 import server
@@ -21,9 +25,9 @@ from config import ROOT, DATA_DIR, MAX_MODEL_MB
 from starlette.concurrency import run_in_threadpool
 
 CATALOG = {
-    "yolo": ("YOLO", "Nhận diện quần áo", "yolo/best.pt"),
-    "resnet": ("ResNet18", "Phân loại màu quần áo", "resnet/best.pt"),
-    "rasa": ("Rasa", "Chatbot thời trang", "rasa/fashion_chatbot_final_v2.tar.gz"),
+    "yolo": ("YOLO", "Nhận diện quần áo", ".pt"),
+    "resnet": ("ResNet18", "Phân loại màu quần áo", ".pt"),
+    "rasa": ("Rasa", "Chatbot thời trang", ".tar.gz"),
 }
 
 
@@ -52,28 +56,19 @@ def catalog():
     with database() as connection:
         enabled = dict(connection.execute("SELECT id, enabled FROM models"))
     result = []
-    for model_id, (name, task, filename) in CATALOG.items():
-        path = ROOT / filename
-        exists = path.is_file()
-        result.append(
-            dict(
-                id=model_id,
-                name=name,
-                task=task,
-                file=filename,
-                enabled=bool(enabled[model_id]),
-                available=exists,
-                size_bytes=path.stat().st_size if exists else 0,
-                modified_at=(
-                    datetime.fromtimestamp(
-                        path.stat().st_mtime, timezone.utc
-                    ).isoformat()
-                    if exists
-                    else None
-                ),
-                format=".tar.gz" if model_id == "rasa" else ".pt",
-            )
-        )
+    from storage import active_model
+    for model_id, (name, task, suffix) in CATALOG.items():
+        try:
+            metadata = active_model(model_id)
+        except Exception as exc:
+            raise HTTPException(503, "Không đọc được model từ R2. Kiểm tra cấu hình và kết nối.") from exc
+        result.append(dict(id=model_id, name=name, task=task,
+                           file=metadata["r2_key"] if metadata else None,
+                           enabled=bool(enabled[model_id]), available=bool(metadata),
+                           size_bytes=metadata["size_bytes"] if metadata else 0,
+                           modified_at=metadata["created_at"] if metadata else None,
+                           format=suffix, storage="Cloudflare R2",
+                           active_version=metadata["id"] if metadata else None))
     return result
 
 
@@ -89,6 +84,92 @@ app = FastAPI(
     version="1.0.0",
     description="Quản lý model và sử dụng pipeline YOLO + ResNet, chatbot Rasa.",
 )
+
+COOKIE_NAME = "fashion_session"
+SESSION_SECONDS = 8 * 60 * 60
+
+
+def session_user(request):
+    token = request.cookies.get(COOKIE_NAME)
+    if not token:
+        return None
+    with database() as connection:
+        connection.execute("CREATE TABLE IF NOT EXISTS sessions (token_hash TEXT PRIMARY KEY, username TEXT NOT NULL, expires_at REAL NOT NULL)")
+        connection.execute("DELETE FROM sessions WHERE expires_at <= ?", (time.time(),))
+        row = connection.execute("SELECT username FROM sessions WHERE token_hash = ?", (hashlib.sha256(token.encode()).hexdigest(),)).fetchone()
+    return row[0] if row else None
+
+
+@app.middleware("http")
+async def require_login(request: WebRequest, call_next):
+    if request.url.path in ("/login", "/api/auth/login", "/health"):
+        return await call_next(request)
+    username = await run_in_threadpool(session_user, request)
+    if not username:
+        if request.url.path.startswith("/api/"):
+            return JSONResponse({"detail": "Vui lòng đăng nhập."}, status_code=401)
+        return RedirectResponse("/login", status_code=303)
+    request.state.username = username
+    if request.method not in ("GET", "HEAD", "OPTIONS"):
+        origin = request.headers.get("origin")
+        if origin and origin != f"{request.url.scheme}://{request.headers.get('host')}":
+            return JSONResponse({"detail": "Nguồn yêu cầu không hợp lệ."}, status_code=403)
+    response = await call_next(request)
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+class LoginRequest(BaseModel):
+    username: str = Field(min_length=1, max_length=100)
+    password: str = Field(min_length=1, max_length=200)
+
+
+@app.get("/login", include_in_schema=False)
+def login_page():
+    return FileResponse(ROOT / "login.html", headers={"Cache-Control": "no-store"})
+
+
+@app.get("/health", include_in_schema=False)
+def health():
+    return {"status": "ok"}
+
+
+@app.post("/api/auth/login")
+def login(body: LoginRequest, request: WebRequest):
+    username = os.getenv("ADMIN_USERNAME", "admin")
+    password = os.getenv("ADMIN_PASSWORD", "Admin@123")
+    valid_user = hmac.compare_digest(body.username.encode(), username.encode())
+    valid_password = hmac.compare_digest(body.password.encode(), password.encode())
+    if not (valid_user and valid_password):
+        raise HTTPException(401, "Tài khoản hoặc mật khẩu không đúng.")
+    token = secrets.token_urlsafe(32)
+    with database() as connection:
+        connection.execute("CREATE TABLE IF NOT EXISTS sessions (token_hash TEXT PRIMARY KEY, username TEXT NOT NULL, expires_at REAL NOT NULL)")
+        old_token = request.cookies.get(COOKIE_NAME)
+        if old_token:
+            connection.execute("DELETE FROM sessions WHERE token_hash=?", (hashlib.sha256(old_token.encode()).hexdigest(),))
+        connection.execute("INSERT INTO sessions VALUES (?, ?, ?)",
+                           (hashlib.sha256(token.encode()).hexdigest(), username, time.time() + SESSION_SECONDS))
+    response = JSONResponse({"username": username})
+    response.set_cookie(COOKIE_NAME, token, max_age=SESSION_SECONDS, httponly=True,
+                        secure=os.getenv("COOKIE_SECURE", "false").lower() == "true", samesite="strict")
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@app.get("/api/auth/me")
+def current_user(request: WebRequest):
+    return {"username": request.state.username}
+
+
+@app.post("/api/auth/logout")
+def logout(request: WebRequest):
+    with database() as connection:
+        token = request.cookies.get(COOKIE_NAME, "")
+        connection.execute("DELETE FROM sessions WHERE token_hash=?", (hashlib.sha256(token.encode()).hexdigest(),))
+    response = JSONResponse({"message": "Đã đăng xuất."})
+    response.delete_cookie(COOKIE_NAME)
+    return response
 
 
 class ModelUpdate(BaseModel):
@@ -146,11 +227,29 @@ def storage_status():
     from storage import r2_configured, r2_enabled
 
     return {
-        "provider": "Cloudflare R2" if r2_enabled() else "Local",
+        "provider": "Cloudflare R2",
         "configured": r2_configured(),
         "enabled": r2_enabled(),
         "max_model_mb": MAX_MODEL_MB,
     }
+
+
+@app.get("/api/models/{model_id}/download")
+def download_model(model_id: str):
+    if model_id not in CATALOG:
+        raise HTTPException(404, "Không tìm thấy model.")
+    from storage import active_model, r2_client
+    try:
+        metadata = active_model(model_id)
+        if not metadata:
+            raise HTTPException(404, "Model chưa được upload lên R2.")
+        url = r2_client().generate_presigned_url("get_object",
+            Params={"Bucket": os.environ["R2_BUCKET"], "Key": metadata["r2_key"]}, ExpiresIn=300)
+        return RedirectResponse(url, status_code=307)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(503, "Không lấy được model từ R2.") from exc
 
 
 @app.post("/api/storage/check")
@@ -198,8 +297,8 @@ async def replace_model(model_id: str, request: WebRequest):
         raise HTTPException(422, f"Model cần file {suffix}.")
     from storage import install_model
 
-    upload_dir = DATA_DIR / "uploads"
-    upload_dir.mkdir(exist_ok=True)
+    upload_dir = Path(tempfile.gettempdir()) / "fashion-ai-r2-uploads"
+    upload_dir.mkdir(parents=True, exist_ok=True)
     descriptor, name = tempfile.mkstemp(dir=upload_dir, suffix=suffix)
     stage = Path(name)
     try:
@@ -259,11 +358,46 @@ def update_model(model_id: str, body: ModelUpdate):
 
 @app.post("/api/models/reload")
 def reload_models():
-    with server.LOCK:
-        server.MODELS.clear()
-    return {
-        "message": "Đã xóa cache. Model sẽ được nạp lại khi nhận yêu cầu nhận diện tiếp theo."
-    }
+    from storage import active_model, model_path, validate_model
+    downloaded = []
+    missing = []
+    try:
+        for model_id in CATALOG:
+            metadata = active_model(model_id)
+            if not metadata:
+                missing.append(model_id)
+                continue
+            path = model_path(model_id, metadata)
+            validate_model(model_id, path)
+            with database() as connection:
+                connection.execute("INSERT OR IGNORE INTO versions VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (metadata["id"], model_id, metadata["created_at"], metadata["size_bytes"],
+                     metadata["sha256"], "", metadata["r2_key"]))
+            downloaded.append(model_id)
+        if not downloaded:
+            raise HTTPException(404, "Không tìm thấy model trên R2. Kiểm tra R2_BUCKET và R2_PREFIX trong .env.")
+        with server.LOCK:
+            server.MODELS.clear()
+        # Warm the vision pipeline so the next real request does not need model loading.
+        vision_ready = all(model_id in downloaded for model_id in ("yolo", "resnet"))
+        if vision_ready:
+            import io
+            from PIL import Image
+            image = io.BytesIO()
+            Image.new("RGB", (32, 32), "white").save(image, format="PNG")
+            server.predict({"image": base64.b64encode(image.getvalue()).decode()})
+        message = f"Đã lấy {len(downloaded)} model từ R2."
+        if vision_ready:
+            message += " YOLO và ResNet đã được nạp, sẵn sàng nhận diện."
+        if "rasa" in downloaded:
+            message += " File Rasa đã tải; chatbot cần dịch vụ Rasa đang chạy."
+        if missing:
+            message += " Chưa có trên R2: " + ", ".join(missing) + "."
+        return {"message": message, "downloaded": downloaded, "missing": missing}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(503, "Không tải hoặc nạp được model R2. Kiểm tra cấu hình, kết nối và checkpoint.") from exc
 
 
 @app.get("/api/status")

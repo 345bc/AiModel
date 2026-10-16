@@ -11,9 +11,6 @@ services:
       RASA_URL: ${DOCKER_RASA_URL:-http://host.docker.internal:5005}
     volumes:
       - manager-data:/data
-      - ./yolo:/app/yolo
-      - ./resnet:/app/resnet
-      - ./rasa:/app/rasa
     restart: unless-stopped
 volumes:
   manager-data:

@@ -7,5 +7,5 @@ RUN pip install --no-cache-dir torch torchvision --index-url https://download.py
 COPY . .
 RUN mkdir -p /data
 EXPOSE 8080
-HEALTHCHECK --interval=30s --timeout=5s --start-period=60s CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/api/models', timeout=3)" || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=3)" || exit 1
 CMD ["python", "app.py"]
