@@ -102,6 +102,11 @@ def session_user(request):
 
 @app.middleware("http")
 async def require_login(request: WebRequest, call_next):
+    # Java can call image inference directly without a Python admin session.
+    if request.method == "POST" and request.url.path.rstrip("/") == "/api/predict":
+        response = await call_next(request)
+        response.headers["Cache-Control"] = "no-store"
+        return response
     if request.url.path in ("/login", "/api/auth/login", "/health"):
         return await call_next(request)
     username = await run_in_threadpool(session_user, request)

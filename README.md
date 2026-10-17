@@ -159,8 +159,11 @@ manifest `fashion-ai/models/{id}/active.json` và khởi động lại để nh�
 Tài khoản mẫu: `admin` / `Admin@123`. Backend so sánh trực tiếp với
 `ADMIN_USERNAME` và `ADMIN_PASSWORD` trong `.env`; frontend không giữ mật khẩu.
 Sau khi đăng nhập, cookie HttpOnly lưu phiên 8 giờ; đăng xuất hủy phiên trên server.
-Trang quản lý, demo, docs và các API model đều yêu cầu phiên đăng nhập.
+Trang quản lý, demo, docs và các API quản lý model đều yêu cầu phiên đăng nhập.
+`POST /api/predict` được gọi trực tiếp, không cần đăng nhập hoặc cookie Python.
+Service Java gửi JSON ảnh base64 và confidence thẳng tới API này.
+`POST /api/chat` vẫn yêu cầu đăng nhập; yêu cầu đăng nhập của chat trên store giữ riêng.
 `GET /health` dành cho Docker không cần đăng nhập. Đặt `COOKIE_SECURE=true` khi dùng HTTPS.
-Đổi mật khẩu mẫu trước khi deploy. Client bên ngoài cần đăng nhập qua
-`POST /api/auth/login` và gửi lại cookie với các API tiếp theo.
+Đổi mật khẩu mẫu trước khi deploy. Client gọi API quản trị cần đăng nhập qua
+`POST /api/auth/login` và gửi lại cookie; API nhận diện không cần bước này.
 API tải Rasa cũng cần cookie; tải archive bằng phiên đăng nhập rồi đưa vào dịch vụ Rasa.
