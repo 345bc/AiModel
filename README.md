@@ -167,3 +167,13 @@ Service Java gửi JSON ảnh base64 và confidence thẳng tới API này.
 Đổi mật khẩu mẫu trước khi deploy. Client gọi API quản trị cần đăng nhập qua
 `POST /api/auth/login` và gửi lại cookie; API nhận diện không cần bước này.
 API tải Rasa cũng cần cookie; tải archive bằng phiên đăng nhập rồi đưa vào dịch vụ Rasa.
+
+### Model trong RAM
+
+Lần nhận diện đầu tiên sau khi khởi động tải YOLO/ResNet từ R2 (hoặc cache tạm),
+rồi giữ cả hai model và bộ tiền xử lý trong RAM. Những lần tiếp theo không đọc R2,
+không đọc/checksum/stat checkpoint và không nạp lại trọng số; chỉ kiểm tra trạng thái
+bật/tắt trong SQLite và chạy inference. Thay thế/khôi phục model ảnh sẽ xóa cache RAM;
+yêu cầu tiếp theo nạp bản mới. Nút Reload tải và nạp ngay. Thay model Rasa không
+xóa cache model ảnh. Cache RAM thuộc từng tiến trình; khi chạy nhiều instance,
+Reload cần thực hiện trên mỗi instance. Thay object R2 trực tiếp không tự nạp lại.

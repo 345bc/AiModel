@@ -133,7 +133,8 @@ def install_model(model_id, stage):
                                (version_id, model_id, metadata["created_at"], metadata["size_bytes"],
                                 metadata["sha256"], "", key))
         activate(model_id, metadata)
-        server.MODELS.clear()
+        if model_id in ("yolo", "resnet"):
+            server.MODELS.clear()
     message = "Đã upload và kích hoạt model trên R2."
     if model_id == "rasa":
         message += " Dịch vụ Rasa cần nạp lại model qua URL tải mới."
@@ -154,5 +155,6 @@ def restore_version(model_id, row):
     r2_client().head_object(Bucket=os.environ["R2_BUCKET"], Key=key)
     with server.LOCK:
         activate(model_id, metadata)
-        server.MODELS.clear()
+        if model_id in ("yolo", "resnet"):
+            server.MODELS.clear()
     return {"message": "Đã kích hoạt lại phiên bản trên R2.", "version_id": version[0]}

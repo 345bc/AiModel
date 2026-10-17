@@ -25,10 +25,9 @@ def predict(data):
     raw = base64.b64decode(data["image"].split(",", 1)[-1], validate=True)
     img = ImageOps.exif_transpose(Image.open(io.BytesIO(raw))).convert("RGB")
     with LOCK:
-        from storage import model_path
-        model_paths = [model_path("resnet"), model_path("yolo")]
-        signature = tuple((p.stat().st_mtime_ns, p.stat().st_size) for p in model_paths)
-        if not MODELS or MODELS.get("signature") != signature:
+        if not MODELS:
+            from storage import model_path
+            model_paths = [model_path("resnet"), model_path("yolo")]
             checkpoint = torch.load(
                 model_paths[0], map_location="cpu", weights_only=True
             )
@@ -47,17 +46,19 @@ def predict(data):
             net.load_state_dict(state)
             net.eval()
             detector = YOLO(str(model_paths[1]))
-            MODELS.update(net=net, names=names, yolo=detector, signature=signature,
+            loaded = dict(net=net, names=names, yolo=detector,
                           image_size=int(checkpoint.get("image_size", 224)),
                           mean=checkpoint.get("mean", [0.485, 0.456, 0.406]),
                           std=checkpoint.get("std", [0.229, 0.224, 0.225]))
-        transform = transforms.Compose(
-            [
-                transforms.Resize((MODELS["image_size"], MODELS["image_size"])),
-                transforms.ToTensor(),
-                transforms.Normalize(MODELS["mean"], MODELS["std"]),
-            ]
-        )
+            loaded["transform"] = transforms.Compose(
+                [
+                    transforms.Resize((loaded["image_size"], loaded["image_size"])),
+                    transforms.ToTensor(),
+                    transforms.Normalize(loaded["mean"], loaded["std"]),
+                ]
+            )
+            MODELS.update(loaded)
+        transform = MODELS["transform"]
 
         def color(crop):
             with torch.inference_mode():

@@ -73,10 +73,12 @@ def catalog():
 
 
 def require_models(*ids):
-    models = {model["id"]: model for model in catalog()}
+    # Enabled state is local metadata; inference must not fetch the R2 catalog.
+    with database() as connection:
+        enabled = dict(connection.execute("SELECT id, enabled FROM models"))
     for model_id in ids:
-        if not models[model_id]["enabled"] or not models[model_id]["available"]:
-            raise HTTPException(503, f"Model {model_id} đang tắt hoặc thiếu file.")
+        if not enabled.get(model_id):
+            raise HTTPException(503, f"Model {model_id} đang tắt.")
 
 
 app = FastAPI(
