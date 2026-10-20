@@ -57,7 +57,7 @@ canvas { width:100%; height:auto; display:none; }
             model đầu tiên có thể mất vài giây.</p>
     </main>
     <script>
-        const $ = id => document.getElementById(id); let source = null, original = null; const sender = 'test-' + crypto.randomUUID();
+        const $ = id => document.getElementById(id); let source = null, original = null; const sender = 'test-' + (window.crypto?.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36));
         async function api(path, data) { const res = await fetch(path, data ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) } : {}); const out = await res.json(); if (res.status === 401) { window.location.replace('/login'); throw Error('Vui lòng đăng nhập.'); } if (!res.ok) throw Error(out.detail || out.error || 'Lỗi server'); return out }
         async function status() { try { const s = await api('/api/status'); for (const k of ['yolo', 'resnet', 'rasa']) { $(k).textContent = k.toUpperCase() + ': ' + (s[k] ? (k === 'rasa' ? 'đã kết nối' : 'đã sẵn sàng trên R2') : 'chưa sẵn sàng'); $(k).className = 'badge p-2 ' + (s[k] ? 'bg-success-subtle text-success' : 'bg-warning-subtle text-warning-emphasis') } } catch (e) { for (const k of ['yolo', 'resnet', 'rasa']) { $(k).textContent = k.toUpperCase() + ': cần chạy server'; $(k).className = 'badge p-2 bg-warning-subtle text-warning-emphasis' } } }
         function draw() { const c = $('canvas'); c.width = original.naturalWidth; c.height = original.naturalHeight; c.getContext('2d').drawImage(original, 0, 0); c.style.display = 'block'; $('placeholder').style.display = 'none' }
